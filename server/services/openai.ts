@@ -42,36 +42,32 @@ export async function generateRecommendations(syllabus: Syllabus): Promise<Recom
 
 export async function generateSchedule(syllabus: Syllabus): Promise<ScheduleResponse> {
   try {
-    // Extract the parsed content
     const parsedContent = syllabus.parsedContent;
+    const currentDate = new Date();
+    const twoWeeksFromNow = new Date();
+    twoWeeksFromNow.setDate(currentDate.getDate() + 14);
 
-    // Create a more detailed prompt using the extracted information
-    const prompt = `Based on this syllabus information:
+    // Create a more focused prompt using only relevant assignment data
+    const prompt = `Generate a focused academic schedule based on these assignments and deadlines:
 
-Course: ${parsedContent.courseInfo.name}
-Instructor: ${parsedContent.courseInfo.instructor}
+Assignments and Deadlines:
+${parsedContent.deadlines.map(d => `- ${d.task} (Due: ${d.date})`).join('\n')}
 
-Assignments:
-${parsedContent.assignments.map(a => `- ${a}`).join('\n')}
+Requirements:
+1. Focus ONLY on actual assignments, deadlines, and required submissions
+2. Exclude general course information or readings unless directly related to an assignment
+3. Use these specific date ranges:
+   - High priority: Due within 7 days (${currentDate.toISOString().split('T')[0]} to ${new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]})
+   - Medium priority: Due within 8-14 days
+   - Low priority: Due after 14 days
+4. Break down large assignments into smaller tasks
 
-Deadlines:
-${parsedContent.deadlines.map(d => `- ${d.task} (${d.date})`).join('\n')}
+Respond in JSON format with an array of 'tasks'. Each task must include:
+- task: specific, actionable description
+- dueDate: actual due date in YYYY-MM-DD format
+- priority: "high"/"medium"/"low" based on due date
 
-Course Schedule:
-${parsedContent.courseInfo.schedule}
-
-Create a detailed weekly schedule for the next 2-3 weeks. For each task:
-1. Use the actual assignment names and deadlines from the syllabus
-2. Break down larger assignments into smaller, manageable tasks
-3. Include preparation work and readings
-4. Set appropriate priority levels based on due dates and task importance
-
-Respond in JSON format with an array of 'tasks', each containing:
-- task: detailed description of what needs to be done
-- dueDate: specific date in ISO format (YYYY-MM-DD)
-- priority: "high" for items due within a week, "medium" for 2 weeks, "low" for beyond
-
-Focus on creating a practical and achievable schedule that helps students stay on track.`;
+Only include real assignments with actual deadlines from the syllabus.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -84,10 +80,17 @@ Focus on creating a practical and achievable schedule that helps students stay o
       return { tasks: [] };
     }
 
-    // Sort tasks by due date
-    parsedResponse.tasks.sort((a: any, b: any) => 
-      new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-    );
+    // Validate and filter tasks
+    parsedResponse.tasks = parsedResponse.tasks
+      .filter((task: any) => {
+        const dueDate = new Date(task.dueDate);
+        return !isNaN(dueDate.getTime()) && // Valid date
+               dueDate >= currentDate && // Not in the past
+               task.task.length > 10; // Meaningful task description
+      })
+      .sort((a: any, b: any) => 
+        new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+      );
 
     return parsedResponse;
   } catch (error) {

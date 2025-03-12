@@ -178,17 +178,32 @@ async function processSyllabus(file: Express.Multer.File) {
 // Helper functions to extract information from syllabus content
 function extractAssignments(content: string): string[] {
   const assignments: string[] = [];
-
-  // Look for common assignment indicators
   const lines = content.split('\n');
+
+  // Keywords that indicate actual assignments
+  const assignmentKeywords = [
+    'assignment',
+    'homework',
+    'project',
+    'quiz',
+    'exam',
+    'paper',
+    'presentation',
+    'due',
+    'submit',
+    'deadline'
+  ];
+
   for (const line of lines) {
     const lowerLine = line.toLowerCase();
+    // Check if line contains assignment keywords and looks like a task
     if (
-      lowerLine.includes('assignment') ||
-      lowerLine.includes('homework') ||
-      lowerLine.includes('project') ||
-      lowerLine.includes('quiz') ||
-      lowerLine.includes('exam')
+      assignmentKeywords.some(keyword => lowerLine.includes(keyword)) &&
+      // Filter out lines that are too short or look like headers
+      line.length > 10 &&
+      !lowerLine.match(/^(chapter|week|unit|module|page|reading|lecture)/i) &&
+      // Has some form of date or number
+      (line.match(/\d/) || line.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i))
     ) {
       assignments.push(line.trim());
     }
@@ -199,20 +214,50 @@ function extractAssignments(content: string): string[] {
 
 function extractDeadlines(content: string): Array<{ task: string; date: string }> {
   const deadlines: Array<{ task: string; date: string }> = [];
-  const datePattern = /(\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b)|(\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4}\b)/gi;
+  const currentYear = new Date().getFullYear();
+
+  // Comprehensive date patterns
+  const datePatterns = [
+    // MM/DD/YYYY or MM-DD-YYYY
+    /\b(0?[1-9]|1[0-2])[/-](0?[1-9]|[12]\d|3[01])[/-](20\d{2})\b/,
+    // Month DD, YYYY
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s+(20\d{2})\b/i,
+  ];
 
   const lines = content.split('\n');
   for (const line of lines) {
-    const dates = line.match(datePattern);
-    if (dates) {
-      deadlines.push({
-        task: line.trim(),
-        date: dates[0]
-      });
+    // Skip lines that don't look like assignments
+    if (
+      line.length < 10 ||
+      line.toLowerCase().match(/^(chapter|week|unit|module|page|reading|lecture)/i)
+    ) {
+      continue;
+    }
+
+    for (const pattern of datePatterns) {
+      const dateMatch = line.match(pattern);
+      if (dateMatch) {
+        let dateStr = dateMatch[0];
+        let date = new Date(dateStr);
+
+        // If date is valid and in a reasonable range
+        if (
+          !isNaN(date.getTime()) &&
+          date.getFullYear() >= currentYear &&
+          date.getFullYear() <= currentYear + 1
+        ) {
+          deadlines.push({
+            task: line.trim(),
+            date: date.toISOString().split('T')[0] // Format as YYYY-MM-DD
+          });
+          break;
+        }
+      }
     }
   }
 
-  return deadlines;
+  // Sort by date
+  return deadlines.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 function extractCourseName(content: string): string {
