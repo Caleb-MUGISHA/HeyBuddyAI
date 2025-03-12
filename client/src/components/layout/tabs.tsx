@@ -11,33 +11,60 @@ export function TabsContainer() {
 
   return (
     <TabsRoot defaultValue="upload" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
-        <TabsTrigger value="upload">Upload Syllabus</TabsTrigger>
-        <TabsTrigger value="schedule">Schedule</TabsTrigger>
-        <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-        <TabsTrigger value="search">Search</TabsTrigger>
-        <TabsTrigger value="chat">Chat</TabsTrigger>
+      <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 p-2 transition-all duration-300">
+        <TabsTrigger 
+          value="upload" 
+          className="transition-all duration-300 data-[state=active]:scale-[0.97]"
+        >
+          Upload Syllabus
+        </TabsTrigger>
+        <TabsTrigger 
+          value="schedule"
+          className="transition-all duration-300 data-[state=active]:scale-[0.97]"
+        >
+          Schedule
+        </TabsTrigger>
+        <TabsTrigger 
+          value="recommendations"
+          className="transition-all duration-300 data-[state=active]:scale-[0.97]"
+        >
+          Recommendations
+        </TabsTrigger>
+        <TabsTrigger 
+          value="search"
+          className="transition-all duration-300 data-[state=active]:scale-[0.97]"
+        >
+          Search
+        </TabsTrigger>
+        <TabsTrigger 
+          value="chat"
+          className="transition-all duration-300 data-[state=active]:scale-[0.97]"
+        >
+          Chat
+        </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="upload">
-        <SyllabusUpload onUploadSuccess={setCurrentSyllabusId} />
-      </TabsContent>
+      <div className="p-2 sm:p-4 transition-all duration-300">
+        <TabsContent value="upload" className="mt-0 transition-all duration-300">
+          <SyllabusUpload onUploadSuccess={setCurrentSyllabusId} />
+        </TabsContent>
 
-      <TabsContent value="schedule">
-        <Schedule syllabusId={currentSyllabusId} />
-      </TabsContent>
+        <TabsContent value="schedule" className="mt-0 transition-all duration-300">
+          <Schedule syllabusId={currentSyllabusId} />
+        </TabsContent>
 
-      <TabsContent value="recommendations">
-        <Recommendations syllabusId={currentSyllabusId} />
-      </TabsContent>
+        <TabsContent value="recommendations" className="mt-0 transition-all duration-300">
+          <Recommendations syllabusId={currentSyllabusId} />
+        </TabsContent>
 
-      <TabsContent value="search">
-        <Search />
-      </TabsContent>
+        <TabsContent value="search" className="mt-0 transition-all duration-300">
+          <Search />
+        </TabsContent>
 
-      <TabsContent value="chat">
-        <Chat />
-      </TabsContent>
+        <TabsContent value="chat" className="mt-0 transition-all duration-300">
+          <Chat />
+        </TabsContent>
+      </div>
     </TabsRoot>
   );
 }
