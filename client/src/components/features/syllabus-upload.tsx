@@ -52,6 +52,23 @@ export function SyllabusUpload({ onUploadSuccess }: Props) {
 
   const handleUpload = async () => {
     if (!file) return;
+
+    // Validate file type
+    const validTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a PDF or Word document (.pdf, .doc, .docx)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     upload.mutate(file);
   };
 
@@ -67,7 +84,7 @@ export function SyllabusUpload({ onUploadSuccess }: Props) {
       <div className="grid w-full max-w-sm items-center gap-4">
         <Input
           type="file"
-          accept=".pdf,.doc,.docx"
+          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           className="transition-all duration-300 file:mr-4 file:py-2 file:px-4
           file:rounded-md file:border-0

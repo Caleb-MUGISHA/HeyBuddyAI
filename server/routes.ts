@@ -2,8 +2,10 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
-import { insertSyllabusSchema, insertTodoSchema } from "@shared/schema";
+import { insertSyllabusSchema } from "@shared/schema";
 import { generateRecommendations, generateSchedule, searchJobs, chatWithAI } from "./services/openai";
+import pdf from 'pdf-parse/lib/pdf-parse.js'; // Fix the import to use the correct path
+import mammoth from 'mammoth';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -15,31 +17,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Try to safely convert buffer to string, checking for encoding issues
-      let content;
+      let content = '';
+      const fileType = req.file.mimetype;
+
       try {
-        // First try to decode as UTF-8
-        content = req.file.buffer.toString('utf-8');
+        switch (fileType) {
+          case 'application/pdf':
+            const pdfData = await pdf(req.file.buffer);
+            content = pdfData.text;
+            break;
 
-        // Check if the content is actually readable text
-        if (content.includes('\0') || !/^[\x00-\x7F\u0080-\uFFFF]*$/.test(content)) {
-          throw new Error('File contains binary or invalid characters');
+          case 'application/msword':
+          case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+            const result = await mammoth.extractRawText({ buffer: req.file.buffer });
+            content = result.value;
+            break;
+
+          default:
+            // Try to safely convert buffer to string for text files
+            content = req.file.buffer.toString('utf-8');
+
+            // Check if the content is actually readable text
+            if (content.includes('\0') || !/^[\x00-\x7F\u0080-\uFFFF]*$/.test(content)) {
+              throw new Error('File contains binary or invalid characters');
+            }
         }
+
+        // Verify we have actual content
+        if (!content.trim()) {
+          throw new Error('No readable content found in file');
+        }
+
+        const parsedContent = await processSyllabus(content, req.file.originalname);
+
+        const syllabus = await storage.createSyllabus({
+          userId: 1, // Mock user ID for now
+          filename: req.file.originalname,
+          content,
+          parsedContent,
+        });
+
+        res.json(syllabus);
       } catch (error) {
-        console.error("Content encoding error:", error);
-        return res.status(400).json({ message: "Invalid file format. Please upload a text file." });
+        console.error("Content processing error:", error);
+        return res.status(400).json({ 
+          message: "Failed to process file content",
+          details: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
-
-      const parsedContent = await processSyllabus(content, req.file.originalname);
-
-      const syllabus = await storage.createSyllabus({
-        userId: 1, // Mock user ID for now
-        filename: req.file.originalname,
-        content,
-        parsedContent,
-      });
-
-      res.json(syllabus);
     } catch (error) {
       console.error("Syllabus upload error:", error);
       res.status(500).json({ 
@@ -121,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Existing routes...
+
   app.get("/api/syllabi", async (req, res) => {
     try {
       const syllabi = await storage.getUserSyllabi(1); // Mock user ID
@@ -132,7 +157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Todo routes remain the same...
+  // Todo routes
   app.get("/api/todos", async (req, res) => {
     try {
       const todos = await storage.getTodos(1); // Mock user ID
@@ -145,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/todos", async (req, res) => {
     try {
-      const todo = insertTodoSchema.parse(req.body);
+      const todo = insertSyllabusSchema.parse(req.body);
       const created = await storage.createTodo(todo);
       res.json(created);
     } catch (error) {
@@ -169,7 +194,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update todo" });
     }
   });
-
 
   const httpServer = createServer(app);
   return httpServer;
