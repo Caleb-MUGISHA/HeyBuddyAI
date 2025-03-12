@@ -59,7 +59,7 @@ export function QuickHelp() {
   return (
     <>
       <motion.div
-        className="fixed bottom-20 right-4 z-50"
+        className="fixed bottom-4 left-4 z-50"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
       >
