@@ -17,76 +17,13 @@ interface ScheduleResponse {
   }>;
 }
 
-export async function generateSchedule(syllabus: Syllabus): Promise<ScheduleResponse> {
-  try {
-    const parsedContent = syllabus.parsedContent;
-    const currentDate = new Date();
-
-    // First, extract all the assignments and deadlines
-    const assignments = parsedContent.deadlines;
-
-    if (!assignments || assignments.length === 0) {
-      console.log("No assignments found in syllabus");
-      return { tasks: [] };
-    }
-
-    // Sort assignments by date
-    assignments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // Convert assignments into tasks with preparation steps
-    const tasks = assignments.flatMap(assignment => {
-      const dueDate = new Date(assignment.date);
-      const daysUntilDue = Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-
-      // Determine the base priority
-      const priority = daysUntilDue <= 7 ? "high" : daysUntilDue <= 14 ? "medium" : "low";
-
-      // Create the main task
-      const mainTask = {
-        task: assignment.task,
-        dueDate: assignment.date,
-        priority
-      };
-
-      // For assignments due in more than 3 days, add preparation tasks
-      const prepTasks = [];
-      if (daysUntilDue > 3) {
-        // Extract the core assignment type and name
-        const taskLower = assignment.task.toLowerCase();
-        if (taskLower.includes('exam') || taskLower.includes('quiz')) {
-          // Add study preparation task 3 days before
-          const prepDate = new Date(dueDate);
-          prepDate.setDate(prepDate.getDate() - 3);
-          prepTasks.push({
-            task: `Prepare for: ${assignment.task}`,
-            dueDate: prepDate.toISOString().split('T')[0],
-            priority: "high"
-          });
-        } else if (taskLower.includes('project') || taskLower.includes('paper')) {
-          // Add start task 7 days before for larger assignments
-          const startDate = new Date(dueDate);
-          startDate.setDate(startDate.getDate() - 7);
-          prepTasks.push({
-            task: `Start working on: ${assignment.task}`,
-            dueDate: startDate.toISOString().split('T')[0],
-            priority: "medium"
-          });
-        }
-      }
-
-      return [...prepTasks, mainTask];
-    });
-
-    // Final sort by date
-    tasks.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-
-    console.log("Generated tasks:", JSON.stringify(tasks, null, 2));
-    return { tasks };
-
-  } catch (error) {
-    console.error("Schedule generation error:", error);
-    throw error;
-  }
+interface JobResponse {
+  jobs: Array<{
+    title: string;
+    description: string;
+    type: string;
+    location: string;
+  }>;
 }
 
 export async function generateRecommendations(syllabus: Syllabus): Promise<RecommendationResponse> {
@@ -103,6 +40,65 @@ export async function generateRecommendations(syllabus: Syllabus): Promise<Recom
   return JSON.parse(response.choices[0].message.content || "{}");
 }
 
+export async function generateSchedule(syllabus: Syllabus): Promise<ScheduleResponse> {
+  try {
+    const parsedContent = syllabus.parsedContent;
+    const currentDate = new Date();
+    const twoWeeksFromNow = new Date();
+    twoWeeksFromNow.setDate(currentDate.getDate() + 14);
+
+    // Create a more focused prompt using only relevant assignment data
+    const prompt = `Generate a focused academic schedule based on these assignments and deadlines:
+
+Assignments and Deadlines:
+${parsedContent.deadlines.map(d => `- ${d.task} (Due: ${d.date})`).join('\n')}
+
+Requirements:
+1. Focus ONLY on actual assignments, deadlines, and required submissions
+2. Exclude general course information or readings unless directly related to an assignment
+3. Use these specific date ranges:
+   - High priority: Due within 7 days (${currentDate.toISOString().split('T')[0]} to ${new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]})
+   - Medium priority: Due within 8-14 days
+   - Low priority: Due after 14 days
+4. Break down large assignments into smaller tasks
+
+Respond in JSON format with an array of 'tasks'. Each task must include:
+- task: specific, actionable description
+- dueDate: actual due date in YYYY-MM-DD format
+- priority: "high"/"medium"/"low" based on due date
+
+Only include real assignments with actual deadlines from the syllabus.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
+    });
+
+    const parsedResponse = JSON.parse(response.choices[0].message.content || "{}");
+    if (!parsedResponse.tasks) {
+      return { tasks: [] };
+    }
+
+    // Validate and filter tasks
+    parsedResponse.tasks = parsedResponse.tasks
+      .filter((task: any) => {
+        const dueDate = new Date(task.dueDate);
+        return !isNaN(dueDate.getTime()) && // Valid date
+               dueDate >= currentDate && // Not in the past
+               task.task.length > 10; // Meaningful task description
+      })
+      .sort((a: any, b: any) => 
+        new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+      );
+
+    return parsedResponse;
+  } catch (error) {
+    console.error("Schedule generation error:", error);
+    throw error;
+  }
+}
+
 export async function searchJobs(query: string): Promise<JobResponse> {
   const prompt = `Find relevant part-time jobs or gigs for a college student interested in: "${query}".
   Focus on flexible, student-friendly opportunities.
@@ -115,15 +111,6 @@ export async function searchJobs(query: string): Promise<JobResponse> {
   });
 
   return JSON.parse(response.choices[0].message.content || "{}");
-}
-
-interface JobResponse {
-  jobs: Array<{
-    title: string;
-    description: string;
-    type: string;
-    location: string;
-  }>;
 }
 
 export async function chatWithAI(message: string, context?: string): Promise<string> {
