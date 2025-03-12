@@ -34,9 +34,20 @@ export function QuickHelp() {
       return response.json();
     },
     onSuccess: (data) => {
+      // Format the response with proper styling
       toast({
-        title: "Answer",
-        description: data.response,
+        title: "Study Advice",
+        description: (
+          <div className="prose prose-sm mt-2 space-y-2">
+            {data.response.split('\n').map((paragraph: string, index: number) => (
+              <p key={index} className="text-sm leading-relaxed">
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        ),
+        className: "bg-card border-2 border-primary/20",
+        duration: 10000, // Show for 10 seconds
       });
       setOpen(false);
       setQuestion("");
