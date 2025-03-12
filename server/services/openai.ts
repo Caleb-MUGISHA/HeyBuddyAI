@@ -113,17 +113,27 @@ export async function searchJobs(query: string): Promise<JobResponse> {
   return JSON.parse(response.choices[0].message.content || "{}");
 }
 
-export async function chatWithAI(message: string, context?: string): Promise<string> {
+export async function chatWithAI(message: string, syllabus?: Syllabus): Promise<string> {
   const systemPrompt = "You are a helpful academic assistant for ASU students. " + 
     "Provide concise, relevant answers to help students with their academic needs.";
 
+  // If syllabus is provided, include its content as context
+  const messages = [
+    { role: "system", content: systemPrompt },
+  ];
+
+  if (syllabus) {
+    messages.push({
+      role: "system",
+      content: `Here is the course syllabus content to reference:\n${syllabus.content}\n\nParsed syllabus information:\n${JSON.stringify(syllabus.parsedContent, null, 2)}`
+    });
+  }
+
+  messages.push({ role: "user", content: message });
+
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...(context ? [{ role: "user", content: `Context: ${context}` }] : []),
-      { role: "user", content: message }
-    ]
+    messages,
   });
 
   return response.choices[0].message.content || "I'm sorry, I couldn't process that request.";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,11 @@ interface Message {
   content: string;
 }
 
-export function Chat() {
+interface Props {
+  syllabusId: number | null;
+}
+
+export function Chat({ syllabusId }: Props) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     { type: "bot", content: "Hey Buddy! How can I help you with your studies today?" },
@@ -22,7 +26,10 @@ export function Chat() {
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
-      const response = await apiRequest("POST", "/api/chat", { message });
+      const response = await apiRequest("POST", "/api/chat", { 
+        message,
+        syllabusId // Include syllabusId in the request
+      });
       return response.json();
     },
     onSuccess: (data) => {
@@ -95,12 +102,13 @@ export function Chat() {
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type your message..."
+            placeholder={syllabusId ? "Ask me about your course..." : "Please upload a syllabus first"}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            disabled={!syllabusId}
           />
           <Button
             onClick={sendMessage}
-            disabled={!message.trim() || chatMutation.isPending}
+            disabled={!syllabusId || !message.trim() || chatMutation.isPending}
           >
             <Send className="h-4 w-4" />
           </Button>

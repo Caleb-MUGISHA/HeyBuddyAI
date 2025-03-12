@@ -62,7 +62,7 @@ export function TabsContainer() {
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0 transition-all duration-300">
-          <Chat />
+          <Chat syllabusId={currentSyllabusId} />
         </TabsContent>
       </div>
     </TabsRoot>

@@ -100,12 +100,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI chat route
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, context } = req.body;
+      const { message, syllabusId } = req.body;
       if (!message) {
         return res.status(400).json({ message: "Message is required" });
       }
 
-      const response = await chatWithAI(message, context);
+      let syllabus;
+      if (syllabusId) {
+        syllabus = await storage.getSyllabus(syllabusId);
+        if (!syllabus) {
+          return res.status(404).json({ message: "Syllabus not found" });
+        }
+      }
+
+      const response = await chatWithAI(message, syllabus);
       res.json({ response });
     } catch (error) {
       console.error("Chat error:", error);
