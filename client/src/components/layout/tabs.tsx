@@ -4,8 +4,11 @@ import { Schedule } from "../features/schedule";
 import { Recommendations } from "../features/recommendations";
 import { Search } from "../features/search";
 import { Chat } from "../features/chat";
+import { useState } from "react";
 
 export function TabsContainer() {
+  const [currentSyllabusId, setCurrentSyllabusId] = useState<number | null>(null);
+
   return (
     <TabsRoot defaultValue="upload" className="w-full">
       <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
@@ -17,15 +20,15 @@ export function TabsContainer() {
       </TabsList>
 
       <TabsContent value="upload">
-        <SyllabusUpload />
+        <SyllabusUpload onUploadSuccess={setCurrentSyllabusId} />
       </TabsContent>
 
       <TabsContent value="schedule">
-        <Schedule />
+        <Schedule syllabusId={currentSyllabusId} />
       </TabsContent>
 
       <TabsContent value="recommendations">
-        <Recommendations />
+        <Recommendations syllabusId={currentSyllabusId} />
       </TabsContent>
 
       <TabsContent value="search">

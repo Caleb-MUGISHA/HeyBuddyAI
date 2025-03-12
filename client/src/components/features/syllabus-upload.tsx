@@ -3,10 +3,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { Upload } from "lucide-react";
 
-export function SyllabusUpload() {
+interface Props {
+  onUploadSuccess: (syllabusId: number) => void;
+}
+
+export function SyllabusUpload({ onUploadSuccess }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -29,9 +32,10 @@ export function SyllabusUpload() {
 
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/syllabi"] });
       setFile(null);
+      onUploadSuccess(data.id);
       toast({
         title: "Success",
         description: "Syllabus uploaded successfully",

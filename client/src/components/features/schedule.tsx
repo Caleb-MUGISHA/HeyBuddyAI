@@ -14,13 +14,14 @@ interface Schedule {
   tasks: ScheduleTask[];
 }
 
-export function Schedule() {
+interface Props {
+  syllabusId: number | null;
+}
+
+export function Schedule({ syllabusId }: Props) {
   const { toast } = useToast();
 
-  // TODO: Get the actual syllabusId from context or state
-  const syllabusId = 1;
-
-  const { data: schedule, isLoading, error } = useQuery<Schedule>({
+  const { data: schedule, isLoading } = useQuery<Schedule>({
     queryKey: [`/api/schedule/${syllabusId}`],
     enabled: !!syllabusId,
     onError: (error: Error) => {
@@ -42,13 +43,17 @@ export function Schedule() {
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[400px]">
-          {isLoading ? (
+          {!syllabusId ? (
+            <div className="text-center text-muted-foreground p-4">
+              Please upload a syllabus first to generate a schedule.
+            </div>
+          ) : isLoading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : !schedule?.tasks?.length ? (
             <div className="text-center text-muted-foreground p-4">
-              No schedule items found. Try uploading a syllabus first.
+              No schedule items found. The syllabus might not contain any schedulable items.
             </div>
           ) : (
             <div className="space-y-4">
