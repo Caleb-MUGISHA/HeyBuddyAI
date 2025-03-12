@@ -18,7 +18,7 @@ export function StudyBuddy() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    // Show a new tip every 5 minutes
+    // Show a new tip every 60 seconds
     const showNewTip = () => {
       const randomTip = tips[Math.floor(Math.random() * tips.length)];
       setTip(randomTip);
@@ -29,7 +29,7 @@ export function StudyBuddy() {
     };
 
     showNewTip(); // Show first tip immediately
-    const interval = setInterval(showNewTip, 300000); // 5 minutes
+    const interval = setInterval(showNewTip, 60000); // 60 seconds
 
     return () => clearInterval(interval);
   }, []);
@@ -42,7 +42,7 @@ export function StudyBuddy() {
         className="relative"
       >
         <Bot className="h-12 w-12 text-primary cursor-pointer hover:text-primary/80 transition-colors" />
-        
+
         <AnimatePresence>
           {isVisible && tip && (
             <motion.div
