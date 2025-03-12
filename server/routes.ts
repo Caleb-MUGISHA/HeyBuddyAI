@@ -15,15 +15,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Convert binary content to base64 to store safely
-      const content = req.file.buffer.toString('base64');
+      // Convert the buffer to text content
+      const content = req.file.buffer.toString('utf-8');
+      console.log("Processing syllabus content:", content.substring(0, 200) + "..."); // Log first 200 chars
 
       const parsedContent = await processSyllabus(req.file);
+      console.log("Parsed syllabus content:", JSON.stringify(parsedContent, null, 2));
 
       const syllabus = await storage.createSyllabus({
         userId: 1, // Mock user ID for now
         filename: req.file.originalname,
-        content,
+        content: content, // Store as plain text instead of base64
         parsedContent,
       });
 
@@ -31,22 +33,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Syllabus upload error:", error);
       res.status(500).json({ message: "Failed to process syllabus" });
-    }
-  });
-
-  // AI-powered recommendations route
-  app.get("/api/recommendations/:syllabusId", async (req, res) => {
-    try {
-      const syllabus = await storage.getSyllabus(parseInt(req.params.syllabusId));
-      if (!syllabus) {
-        return res.status(404).json({ message: "Syllabus not found" });
-      }
-
-      const recommendations = await generateRecommendations(syllabus);
-      res.json(recommendations);
-    } catch (error) {
-      console.error("Recommendations error:", error);
-      res.status(500).json({ message: "Failed to generate recommendations" });
     }
   });
 
@@ -58,7 +44,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Syllabus not found" });
       }
 
+      console.log("Retrieved syllabus:", JSON.stringify(syllabus, null, 2));
+
       const schedule = await generateSchedule(syllabus);
+      console.log("Generated schedule:", JSON.stringify(schedule, null, 2));
+
       res.json(schedule);
     } catch (error) {
       console.error("Schedule generation error:", error);
@@ -154,33 +144,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 async function processSyllabus(file: Express.Multer.File) {
   try {
-    // Decode and parse the content
+    // Parse the content
     const content = file.buffer.toString('utf-8');
 
-    // Create a structured object from the syllabus content
-    const parsedContent = {
-      assignments: extractAssignments(content),
-      deadlines: extractDeadlines(content),
+    // Extract assignments with dates
+    const assignmentsWithDates = extractAssignmentsWithDates(content);
+    console.log("Extracted assignments:", assignmentsWithDates);
+
+    return {
+      assignments: assignmentsWithDates.map(a => a.task),
+      deadlines: assignmentsWithDates,
       courseInfo: {
         name: extractCourseName(content) || file.originalname,
         instructor: extractInstructor(content) || "",
         schedule: extractSchedule(content) || "",
       }
     };
-
-    return parsedContent;
   } catch (error) {
     console.error("Error processing syllabus:", error);
     throw new Error("Failed to process syllabus content");
   }
 }
 
-// Helper functions to extract information from syllabus content
-function extractAssignments(content: string): string[] {
-  const assignments: string[] = [];
-  const lines = content.split('\n');
+function extractAssignmentsWithDates(content: string): Array<{ task: string; date: string }> {
+  const assignments: Array<{ task: string; date: string }> = [];
+  const currentYear = new Date().getFullYear();
 
-  // Keywords that indicate actual assignments
+  // Date patterns
+  const datePatterns = [
+    /\b(0?[1-9]|1[0-2])[/-](0?[1-9]|[12]\d|3[01])[/-](20\d{2})\b/, // MM/DD/YYYY
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(?:20\d{2})?\b/i, // Month DD, YYYY
+  ];
+
+  // Keywords that indicate assignments
   const assignmentKeywords = [
     'assignment',
     'homework',
@@ -194,76 +190,53 @@ function extractAssignments(content: string): string[] {
     'deadline'
   ];
 
-  for (const line of lines) {
-    const lowerLine = line.toLowerCase();
-    // Check if line contains assignment keywords and looks like a task
-    if (
-      assignmentKeywords.some(keyword => lowerLine.includes(keyword)) &&
-      // Filter out lines that are too short or look like headers
-      line.length > 10 &&
-      !lowerLine.match(/^(chapter|week|unit|module|page|reading|lecture)/i) &&
-      // Has some form of date or number
-      (line.match(/\d/) || line.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i))
-    ) {
-      assignments.push(line.trim());
-    }
-  }
-
-  return assignments;
-}
-
-function extractDeadlines(content: string): Array<{ task: string; date: string }> {
-  const deadlines: Array<{ task: string; date: string }> = [];
-  const currentYear = new Date().getFullYear();
-
-  // Comprehensive date patterns
-  const datePatterns = [
-    // MM/DD/YYYY or MM-DD-YYYY
-    /\b(0?[1-9]|1[0-2])[/-](0?[1-9]|[12]\d|3[01])[/-](20\d{2})\b/,
-    // Month DD, YYYY
-    /\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s+(20\d{2})\b/i,
-  ];
-
   const lines = content.split('\n');
   for (const line of lines) {
-    // Skip lines that don't look like assignments
-    if (
-      line.length < 10 ||
-      line.toLowerCase().match(/^(chapter|week|unit|module|page|reading|lecture)/i)
-    ) {
+    const lowerLine = line.toLowerCase().trim();
+
+    // Skip headers and short lines
+    if (line.length < 10 || lowerLine.match(/^(chapter|week|unit|module|page|reading|lecture)/i)) {
       continue;
     }
 
-    for (const pattern of datePatterns) {
-      const dateMatch = line.match(pattern);
-      if (dateMatch) {
-        let dateStr = dateMatch[0];
-        let date = new Date(dateStr);
+    // Check if line contains assignment keywords
+    if (assignmentKeywords.some(keyword => lowerLine.includes(keyword))) {
+      // Look for dates in the line
+      for (const pattern of datePatterns) {
+        const dateMatch = line.match(pattern);
+        if (dateMatch) {
+          let dateStr = dateMatch[0];
+          // Add current year if year is missing
+          if (!dateStr.match(/20\d{2}/)) {
+            dateStr = `${dateStr}, ${currentYear}`;
+          }
 
-        // If date is valid and in a reasonable range
-        if (
-          !isNaN(date.getTime()) &&
-          date.getFullYear() >= currentYear &&
-          date.getFullYear() <= currentYear + 1
-        ) {
-          deadlines.push({
-            task: line.trim(),
-            date: date.toISOString().split('T')[0] // Format as YYYY-MM-DD
-          });
-          break;
+          const date = new Date(dateStr);
+
+          // Validate date
+          if (!isNaN(date.getTime())) {
+            assignments.push({
+              task: line.trim(),
+              date: date.toISOString().split('T')[0] // Format as YYYY-MM-DD
+            });
+            break;
+          }
         }
       }
     }
   }
 
-  // Sort by date
-  return deadlines.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return assignments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 function extractCourseName(content: string): string {
   const lines = content.split('\n');
   for (const line of lines) {
-    if (line.toLowerCase().includes('course') && line.includes(':')) {
+    const lowerLine = line.toLowerCase();
+    if (
+      (lowerLine.includes('course') || lowerLine.includes('class')) &&
+      line.includes(':')
+    ) {
       return line.split(':')[1].trim();
     }
   }
@@ -275,7 +248,9 @@ function extractInstructor(content: string): string {
   for (const line of lines) {
     const lowerLine = line.toLowerCase();
     if (
-      (lowerLine.includes('instructor') || lowerLine.includes('professor')) &&
+      (lowerLine.includes('instructor') || 
+       lowerLine.includes('professor') || 
+       lowerLine.includes('taught by')) &&
       line.includes(':')
     ) {
       return line.split(':')[1].trim();
@@ -291,25 +266,31 @@ function extractSchedule(content: string): string {
   const lines = content.split('\n');
   for (const line of lines) {
     const lowerLine = line.toLowerCase();
+
+    // Start of schedule section
     if (
-      lowerLine.includes('schedule') ||
-      lowerLine.includes('course outline') ||
-      lowerLine.includes('weekly topics')
+      !inScheduleSection &&
+      (lowerLine.includes('schedule') ||
+       lowerLine.includes('course outline') ||
+       lowerLine.includes('weekly topics') ||
+       lowerLine.includes('course calendar'))
     ) {
       inScheduleSection = true;
       continue;
     }
 
+    // Add non-empty lines while in schedule section
     if (inScheduleSection && line.trim()) {
       scheduleSection.push(line.trim());
     }
 
-    // Stop if we hit another major section
+    // End of schedule section
     if (
       inScheduleSection &&
       (lowerLine.includes('grading') ||
        lowerLine.includes('policies') ||
-       lowerLine.includes('materials'))
+       lowerLine.includes('materials') ||
+       lowerLine.includes('requirements'))
     ) {
       break;
     }
