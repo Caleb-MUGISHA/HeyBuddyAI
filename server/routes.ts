@@ -14,14 +14,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      let content: string;
-      try {
-        content = req.file.buffer.toString("utf-8");
-      } catch (error) {
-        return res.status(400).json({ message: "Invalid file format" });
-      }
+      // Convert binary content to base64 to store safely
+      const content = req.file.buffer.toString('base64');
 
-      const parsedContent = await processSyllabus(content);
+      const parsedContent = await processSyllabus(req.file);
 
       const syllabus = await storage.createSyllabus({
         userId: 1, // Mock user ID for now
@@ -89,13 +85,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-async function processSyllabus(content: string) {
-  // Basic syllabus processing
+async function processSyllabus(file: Express.Multer.File) {
+  // For now, return a basic structure
+  // In a real implementation, this would parse the file content
   return {
     assignments: [],
     deadlines: [],
     courseInfo: {
-      name: "",
+      name: file.originalname,
       instructor: "",
       schedule: "",
     }
