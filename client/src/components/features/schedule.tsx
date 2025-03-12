@@ -20,18 +20,17 @@ export function Schedule() {
   // TODO: Get the actual syllabusId from context or state
   const syllabusId = 1;
 
-  const { data: schedule, isLoading, error } = useQuery<Schedule>({
+  const { data: schedule, isLoading } = useQuery<Schedule>({
     queryKey: [`/api/schedule/${syllabusId}`],
     enabled: !!syllabusId,
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to load schedule",
+        variant: "destructive",
+      });
+    }
   });
-
-  if (error) {
-    toast({
-      title: "Error",
-      description: "Failed to load schedule",
-      variant: "destructive",
-    });
-  }
 
   if (isLoading) {
     return <div>Loading schedule...</div>;
@@ -48,7 +47,7 @@ export function Schedule() {
       <CardContent>
         <ScrollArea className="h-[400px]">
           <div className="space-y-4">
-            {schedule?.tasks.map((task, index) => (
+            {schedule?.tasks?.map((task, index) => (
               <div
                 key={index}
                 className={`p-4 rounded-lg border ${
