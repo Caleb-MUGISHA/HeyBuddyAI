@@ -8,16 +8,14 @@ import { generateRecommendations, generateSchedule, searchJobs, chatWithAI } fro
 const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Existing syllabus upload route
+  // Update the syllabus upload route
   app.post("/api/syllabi", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Convert binary content to base64 to store safely
-      const content = req.file.buffer.toString('base64');
-
+      const content = req.file.buffer.toString('utf-8');
       const parsedContent = await processSyllabus(req.file);
 
       const syllabus = await storage.createSyllabus({
@@ -154,21 +152,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 async function processSyllabus(file: Express.Multer.File) {
   try {
-    // Decode and parse the content
+    // For PDF files we would need PDF parsing
+    // For now, assume text/plain or similar
     const content = file.buffer.toString('utf-8');
 
     // Create a structured object from the syllabus content
-    const parsedContent = {
-      assignments: extractAssignments(content),
-      deadlines: extractDeadlines(content),
+    const assignments = extractAssignments(content);
+    const deadlines = extractDeadlines(content);
+
+    return {
+      assignments,
+      deadlines,
       courseInfo: {
         name: extractCourseName(content) || file.originalname,
         instructor: extractInstructor(content) || "",
         schedule: extractSchedule(content) || "",
       }
     };
-
-    return parsedContent;
   } catch (error) {
     console.error("Error processing syllabus:", error);
     throw new Error("Failed to process syllabus content");
@@ -263,7 +263,8 @@ function extractDeadlines(content: string): Array<{ task: string; date: string }
 function extractCourseName(content: string): string {
   const lines = content.split('\n');
   for (const line of lines) {
-    if (line.toLowerCase().includes('course') && line.includes(':')) {
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.includes('course') && line.includes(':')) {
       return line.split(':')[1].trim();
     }
   }
@@ -292,9 +293,10 @@ function extractSchedule(content: string): string {
   for (const line of lines) {
     const lowerLine = line.toLowerCase();
     if (
-      lowerLine.includes('schedule') ||
-      lowerLine.includes('course outline') ||
-      lowerLine.includes('weekly topics')
+      !inScheduleSection &&
+      (lowerLine.includes('schedule') ||
+       lowerLine.includes('course outline') ||
+       lowerLine.includes('weekly topics'))
     ) {
       inScheduleSection = true;
       continue;
