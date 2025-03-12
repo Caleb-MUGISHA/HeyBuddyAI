@@ -15,8 +15,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      const content = req.file.buffer.toString('utf-8');
-      const parsedContent = await processSyllabus(req.file);
+      // Try to safely convert buffer to string, checking for encoding issues
+      let content;
+      try {
+        // First try to decode as UTF-8
+        content = req.file.buffer.toString('utf-8');
+
+        // Check if the content is actually readable text
+        if (content.includes('\0') || !/^[\x00-\x7F\u0080-\uFFFF]*$/.test(content)) {
+          throw new Error('File contains binary or invalid characters');
+        }
+      } catch (error) {
+        console.error("Content encoding error:", error);
+        return res.status(400).json({ message: "Invalid file format. Please upload a text file." });
+      }
+
+      const parsedContent = await processSyllabus(content, req.file.originalname);
 
       const syllabus = await storage.createSyllabus({
         userId: 1, // Mock user ID for now
@@ -28,7 +42,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(syllabus);
     } catch (error) {
       console.error("Syllabus upload error:", error);
-      res.status(500).json({ message: "Failed to process syllabus" });
+      res.status(500).json({ 
+        message: "Failed to process syllabus",
+        details: error instanceof Error ? error.message : undefined
+      });
     }
   });
 
@@ -150,12 +167,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-async function processSyllabus(file: Express.Multer.File) {
+async function processSyllabus(content: string, filename: string) {
   try {
-    // For PDF files we would need PDF parsing
-    // For now, assume text/plain or similar
-    const content = file.buffer.toString('utf-8');
-
     // Create a structured object from the syllabus content
     const assignments = extractAssignments(content);
     const deadlines = extractDeadlines(content);
@@ -164,14 +177,14 @@ async function processSyllabus(file: Express.Multer.File) {
       assignments,
       deadlines,
       courseInfo: {
-        name: extractCourseName(content) || file.originalname,
+        name: extractCourseName(content) || filename,
         instructor: extractInstructor(content) || "",
         schedule: extractSchedule(content) || "",
       }
     };
   } catch (error) {
     console.error("Error processing syllabus:", error);
-    throw new Error("Failed to process syllabus content");
+    throw new Error(`Failed to process syllabus content: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
