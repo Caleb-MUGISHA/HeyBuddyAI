@@ -1,67 +1,51 @@
-import { Syllabus, InsertSyllabus, Todo, InsertTodo } from "@shared/schema";
+import { Syllabus, InsertSyllabus, Todo, InsertTodo, syllabi, todos } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // Syllabus operations
   getSyllabus(id: number): Promise<Syllabus | undefined>;
   getUserSyllabi(userId: number): Promise<Syllabus[]>;
   createSyllabus(syllabus: InsertSyllabus): Promise<Syllabus>;
-  
+
   // Todo operations
   getTodos(userId: number): Promise<Todo[]>;
   createTodo(todo: InsertTodo): Promise<Todo>;
   updateTodo(id: number, completed: boolean): Promise<Todo | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private syllabi: Map<number, Syllabus>;
-  private todos: Map<number, Todo>;
-  private syllabusId: number;
-  private todoId: number;
-
-  constructor() {
-    this.syllabi = new Map();
-    this.todos = new Map();
-    this.syllabusId = 1;
-    this.todoId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async getSyllabus(id: number): Promise<Syllabus | undefined> {
-    return this.syllabi.get(id);
+    const [syllabus] = await db.select().from(syllabi).where(eq(syllabi.id, id));
+    return syllabus;
   }
 
   async getUserSyllabi(userId: number): Promise<Syllabus[]> {
-    return Array.from(this.syllabi.values()).filter(s => s.userId === userId);
+    return db.select().from(syllabi).where(eq(syllabi.userId, userId));
   }
 
   async createSyllabus(syllabus: InsertSyllabus): Promise<Syllabus> {
-    const id = this.syllabusId++;
-    const newSyllabus: Syllabus = {
-      ...syllabus,
-      id,
-      uploadedAt: new Date(),
-    };
-    this.syllabi.set(id, newSyllabus);
+    const [newSyllabus] = await db.insert(syllabi).values(syllabus).returning();
     return newSyllabus;
   }
 
   async getTodos(userId: number): Promise<Todo[]> {
-    return Array.from(this.todos.values()).filter(t => t.userId === userId);
+    return db.select().from(todos).where(eq(todos.userId, userId));
   }
 
   async createTodo(todo: InsertTodo): Promise<Todo> {
-    const id = this.todoId++;
-    const newTodo: Todo = { ...todo, id };
-    this.todos.set(id, newTodo);
+    const [newTodo] = await db.insert(todos).values(todo).returning();
     return newTodo;
   }
 
   async updateTodo(id: number, completed: boolean): Promise<Todo | undefined> {
-    const todo = this.todos.get(id);
-    if (!todo) return undefined;
-    const updatedTodo = { ...todo, completed: completed ? 1 : 0 };
-    this.todos.set(id, updatedTodo);
+    const [updatedTodo] = await db
+      .update(todos)
+      .set({ completed: completed ? 1 : 0 })
+      .where(eq(todos.id, id))
+      .returning();
     return updatedTodo;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
