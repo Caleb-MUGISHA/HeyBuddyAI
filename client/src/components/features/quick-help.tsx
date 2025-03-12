@@ -70,13 +70,13 @@ export function QuickHelp() {
   return (
     <>
       <motion.div
-        className="fixed bottom-4 left-4 z-50"
+        className="fixed top-4 right-4 z-50"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
       >
         <Button
           size="lg"
-          className="rounded-full shadow-lg"
+          className="rounded-full shadow-lg bg-white text-primary hover:bg-white/90"
           onClick={() => setOpen(true)}
         >
           <HelpCircle className="mr-2 h-5 w-5" />
