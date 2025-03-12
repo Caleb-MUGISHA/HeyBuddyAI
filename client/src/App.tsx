@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import { StudyBuddy } from "@/components/features/study-buddy";
+import { QuickHelp } from "@/components/features/quick-help";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router />
       <StudyBuddy />
+      <QuickHelp />
       <Toaster />
     </QueryClientProvider>
   );
