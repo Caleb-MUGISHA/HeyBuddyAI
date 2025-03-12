@@ -23,7 +23,16 @@ interface JobResponse {
     description: string;
     type: string;
     location: string;
+    payRange?: string;
+    matchingSkills?: string[];
   }>;
+}
+
+interface UserProfile {
+  interests: string[];
+  skills: string[];
+  city: string;
+  state: string;
 }
 
 export async function generateRecommendations(syllabus: Syllabus): Promise<RecommendationResponse> {
@@ -98,10 +107,23 @@ Only include real assignments with actual deadlines from the syllabus.`;
   }
 }
 
-export async function searchJobs(query: string): Promise<JobResponse> {
-  const prompt = `Find relevant part-time jobs or gigs for a college student interested in: "${query}".
-  Focus on flexible, student-friendly opportunities.
-  Respond in JSON format with an array of 'jobs' containing title, description, type (part-time/gig), and location.`;
+export async function searchJobs(query: string, profile: UserProfile): Promise<JobResponse> {
+  const prompt = `Find relevant part-time jobs or gigs for a college student with the following profile:
+
+Location: ${profile.city}, ${profile.state}
+Interests: ${profile.interests.join(', ')}
+Skills: ${profile.skills.join(', ')}
+
+Additional search criteria: "${query}"
+
+Focus on flexible, student-friendly opportunities that match their location, interests, and skills.
+Respond in JSON format with an array of 'jobs' containing:
+- title: job title
+- description: detailed description
+- type: "part-time" or "gig"
+- location: city, state
+- payRange: estimated pay range (optional)
+- matchingSkills: array of skills from their profile that match the job (optional)`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",

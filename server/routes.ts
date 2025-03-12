@@ -81,15 +81,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI-powered job search route
+  // Update the job search route to handle profile information
   app.post("/api/search/jobs", async (req, res) => {
     try {
-      const { query } = req.body;
-      if (!query) {
-        return res.status(400).json({ message: "Search query is required" });
+      const { query, profile } = req.body;
+      if (!profile || !profile.city || !profile.state) {
+        return res.status(400).json({ message: "Location information is required" });
       }
 
-      const jobs = await searchJobs(query);
+      const jobs = await searchJobs(query || "", profile);
       res.json(jobs);
     } catch (error) {
       console.error("Job search error:", error);
