@@ -14,9 +14,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      const content = req.file.buffer.toString();
+      let content: string;
+      try {
+        content = req.file.buffer.toString("utf-8");
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid file format" });
+      }
+
       const parsedContent = await processSyllabus(content);
-      
+
       const syllabus = await storage.createSyllabus({
         userId: 1, // Mock user ID for now
         filename: req.file.originalname,
@@ -26,19 +32,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(syllabus);
     } catch (error) {
+      console.error("Syllabus upload error:", error);
       res.status(500).json({ message: "Failed to process syllabus" });
     }
   });
 
   app.get("/api/syllabi", async (req, res) => {
-    const syllabi = await storage.getUserSyllabi(1); // Mock user ID
-    res.json(syllabi);
+    try {
+      const syllabi = await storage.getUserSyllabi(1); // Mock user ID
+      res.json(syllabi);
+    } catch (error) {
+      console.error("Get syllabi error:", error);
+      res.status(500).json({ message: "Failed to fetch syllabi" });
+    }
   });
 
   // Todo routes
   app.get("/api/todos", async (req, res) => {
-    const todos = await storage.getTodos(1); // Mock user ID
-    res.json(todos);
+    try {
+      const todos = await storage.getTodos(1); // Mock user ID
+      res.json(todos);
+    } catch (error) {
+      console.error("Get todos error:", error);
+      res.status(500).json({ message: "Failed to fetch todos" });
+    }
   });
 
   app.post("/api/todos", async (req, res) => {
@@ -47,19 +64,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const created = await storage.createTodo(todo);
       res.json(created);
     } catch (error) {
+      console.error("Create todo error:", error);
       res.status(400).json({ message: "Invalid todo data" });
     }
   });
 
   app.patch("/api/todos/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    const completed = req.body.completed;
-    const updated = await storage.updateTodo(id, completed);
-    if (!updated) {
-      res.status(404).json({ message: "Todo not found" });
-      return;
+    try {
+      const id = parseInt(req.params.id);
+      const completed = req.body.completed;
+      const updated = await storage.updateTodo(id, completed);
+      if (!updated) {
+        res.status(404).json({ message: "Todo not found" });
+        return;
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Update todo error:", error);
+      res.status(500).json({ message: "Failed to update todo" });
     }
-    res.json(updated);
   });
 
   const httpServer = createServer(app);

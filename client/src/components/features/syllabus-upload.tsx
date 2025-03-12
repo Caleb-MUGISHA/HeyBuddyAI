@@ -15,20 +15,32 @@ export function SyllabusUpload() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await apiRequest("POST", "/api/syllabi", formData);
+
+      const res = await fetch("/api/syllabi", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(error);
+      }
+
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/syllabi"] });
+      setFile(null);
       toast({
         title: "Success",
         description: "Syllabus uploaded successfully",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to upload syllabus",
+        description: error.message || "Failed to upload syllabus",
         variant: "destructive",
       });
     },
