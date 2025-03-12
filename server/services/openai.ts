@@ -41,10 +41,22 @@ export async function generateRecommendations(syllabus: Syllabus): Promise<Recom
 }
 
 export async function generateSchedule(syllabus: Syllabus): Promise<ScheduleResponse> {
-  const prompt = `Based on this course syllabus with content: "${syllabus.content}", 
-  create a weekly schedule of tasks and deadlines.
-  Include assignments, readings, and preparation work.
-  Respond in JSON format with an array of 'tasks' containing task description, due date, and priority level.`;
+  // Decode the base64 content
+  const decodedContent = Buffer.from(syllabus.content, 'base64').toString('utf-8');
+
+  const prompt = `Based on this course syllabus content: "${decodedContent}", create a detailed weekly schedule.
+  Extract actual assignments, deadlines, and important dates from the syllabus.
+  For each task:
+  - Include specific assignment names and readings
+  - Use actual due dates from the syllabus
+  - Set priority (high/medium/low) based on the task's importance
+
+  Respond in JSON format with an array of 'tasks', each containing:
+  - task: detailed description of what needs to be done
+  - dueDate: specific date in ISO format (YYYY-MM-DD)
+  - priority: "high", "medium", or "low"
+
+  Focus on the next 2-3 weeks of tasks.`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -72,7 +84,7 @@ export async function searchJobs(query: string): Promise<JobResponse> {
 export async function chatWithAI(message: string, context?: string): Promise<string> {
   const systemPrompt = "You are a helpful academic assistant for ASU students. " + 
     "Provide concise, relevant answers to help students with their academic needs.";
-  
+
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
