@@ -10,9 +10,15 @@ import { Trophy } from "lucide-react";
 
 export function TabsContainer() {
   const [currentSyllabusId, setCurrentSyllabusId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("upload");
+
+  const handleSyllabusUpload = (syllabusId: number) => {
+    setCurrentSyllabusId(syllabusId);
+    setActiveTab("schedule"); // Automatically switch to schedule tab
+  };
 
   return (
-    <TabsRoot defaultValue="upload" className="w-full">
+    <TabsRoot value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-2 transition-all duration-300">
         <TabsTrigger 
           value="upload" 
@@ -55,7 +61,7 @@ export function TabsContainer() {
 
       <div className="p-2 sm:p-4 transition-all duration-300">
         <TabsContent value="upload" className="mt-0 transition-all duration-300">
-          <SyllabusUpload onUploadSuccess={setCurrentSyllabusId} />
+          <SyllabusUpload onUploadSuccess={handleSyllabusUpload} />
         </TabsContent>
 
         <TabsContent value="schedule" className="mt-0 transition-all duration-300">
