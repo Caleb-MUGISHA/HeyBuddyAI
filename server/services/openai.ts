@@ -42,23 +42,36 @@ export async function generateRecommendations(syllabus: Syllabus): Promise<Recom
 
 export async function generateSchedule(syllabus: Syllabus): Promise<ScheduleResponse> {
   try {
-    // Decode the base64 content and truncate to avoid token limits
-    const decodedContent = Buffer.from(syllabus.content, 'base64').toString('utf-8');
-    const truncatedContent = decodedContent.slice(0, 8000); // Limit content size
+    // Extract the parsed content
+    const parsedContent = syllabus.parsedContent;
 
-    const prompt = `Based on this truncated course syllabus content: "${truncatedContent}", create a detailed weekly schedule.
-    Extract assignments, deadlines, and important dates.
-    For each task:
-    - Include specific assignment names and readings
-    - Use actual due dates from the syllabus
-    - Set priority (high/medium/low) based on importance
+    // Create a more detailed prompt using the extracted information
+    const prompt = `Based on this syllabus information:
 
-    Respond in JSON format with an array of 'tasks', each containing:
-    - task: detailed description of what needs to be done
-    - dueDate: specific date in ISO format (YYYY-MM-DD)
-    - priority: "high", "medium", or "low"
+Course: ${parsedContent.courseInfo.name}
+Instructor: ${parsedContent.courseInfo.instructor}
 
-    Focus on the next 2-3 weeks of tasks.`;
+Assignments:
+${parsedContent.assignments.map(a => `- ${a}`).join('\n')}
+
+Deadlines:
+${parsedContent.deadlines.map(d => `- ${d.task} (${d.date})`).join('\n')}
+
+Course Schedule:
+${parsedContent.courseInfo.schedule}
+
+Create a detailed weekly schedule for the next 2-3 weeks. For each task:
+1. Use the actual assignment names and deadlines from the syllabus
+2. Break down larger assignments into smaller, manageable tasks
+3. Include preparation work and readings
+4. Set appropriate priority levels based on due dates and task importance
+
+Respond in JSON format with an array of 'tasks', each containing:
+- task: detailed description of what needs to be done
+- dueDate: specific date in ISO format (YYYY-MM-DD)
+- priority: "high" for items due within a week, "medium" for 2 weeks, "low" for beyond
+
+Focus on creating a practical and achievable schedule that helps students stay on track.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -70,6 +83,12 @@ export async function generateSchedule(syllabus: Syllabus): Promise<ScheduleResp
     if (!parsedResponse.tasks) {
       return { tasks: [] };
     }
+
+    // Sort tasks by due date
+    parsedResponse.tasks.sort((a: any, b: any) => 
+      new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    );
+
     return parsedResponse;
   } catch (error) {
     console.error("Schedule generation error:", error);

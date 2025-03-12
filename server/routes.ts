@@ -153,15 +153,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
 }
 
 async function processSyllabus(file: Express.Multer.File) {
-  // For now, return a basic structure
-  // In a real implementation, this would parse the file content
-  return {
-    assignments: [],
-    deadlines: [],
-    courseInfo: {
-      name: file.originalname,
-      instructor: "",
-      schedule: "",
+  try {
+    // Decode and parse the content
+    const content = file.buffer.toString('utf-8');
+
+    // Create a structured object from the syllabus content
+    const parsedContent = {
+      assignments: extractAssignments(content),
+      deadlines: extractDeadlines(content),
+      courseInfo: {
+        name: extractCourseName(content) || file.originalname,
+        instructor: extractInstructor(content) || "",
+        schedule: extractSchedule(content) || "",
+      }
+    };
+
+    return parsedContent;
+  } catch (error) {
+    console.error("Error processing syllabus:", error);
+    throw new Error("Failed to process syllabus content");
+  }
+}
+
+// Helper functions to extract information from syllabus content
+function extractAssignments(content: string): string[] {
+  const assignments: string[] = [];
+
+  // Look for common assignment indicators
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    if (
+      lowerLine.includes('assignment') ||
+      lowerLine.includes('homework') ||
+      lowerLine.includes('project') ||
+      lowerLine.includes('quiz') ||
+      lowerLine.includes('exam')
+    ) {
+      assignments.push(line.trim());
     }
-  };
+  }
+
+  return assignments;
+}
+
+function extractDeadlines(content: string): Array<{ task: string; date: string }> {
+  const deadlines: Array<{ task: string; date: string }> = [];
+  const datePattern = /(\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b)|(\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4}\b)/gi;
+
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const dates = line.match(datePattern);
+    if (dates) {
+      deadlines.push({
+        task: line.trim(),
+        date: dates[0]
+      });
+    }
+  }
+
+  return deadlines;
+}
+
+function extractCourseName(content: string): string {
+  const lines = content.split('\n');
+  for (const line of lines) {
+    if (line.toLowerCase().includes('course') && line.includes(':')) {
+      return line.split(':')[1].trim();
+    }
+  }
+  return "";
+}
+
+function extractInstructor(content: string): string {
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    if (
+      (lowerLine.includes('instructor') || lowerLine.includes('professor')) &&
+      line.includes(':')
+    ) {
+      return line.split(':')[1].trim();
+    }
+  }
+  return "";
+}
+
+function extractSchedule(content: string): string {
+  const scheduleSection: string[] = [];
+  let inScheduleSection = false;
+
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    if (
+      lowerLine.includes('schedule') ||
+      lowerLine.includes('course outline') ||
+      lowerLine.includes('weekly topics')
+    ) {
+      inScheduleSection = true;
+      continue;
+    }
+
+    if (inScheduleSection && line.trim()) {
+      scheduleSection.push(line.trim());
+    }
+
+    // Stop if we hit another major section
+    if (
+      inScheduleSection &&
+      (lowerLine.includes('grading') ||
+       lowerLine.includes('policies') ||
+       lowerLine.includes('materials'))
+    ) {
+      break;
+    }
+  }
+
+  return scheduleSection.join('\n');
 }
