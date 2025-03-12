@@ -17,15 +17,6 @@ interface ScheduleResponse {
   }>;
 }
 
-interface JobResponse {
-  jobs: Array<{
-    title: string;
-    description: string;
-    type: string;
-    location: string;
-  }>;
-}
-
 export async function generateRecommendations(syllabus: Syllabus): Promise<RecommendationResponse> {
   const prompt = `Based on this course syllabus with filename "${syllabus.filename}", suggest relevant books and YouTube videos.
   Include 3 books and 3 videos that would help a student succeed in this course.
@@ -44,55 +35,33 @@ export async function generateSchedule(syllabus: Syllabus): Promise<ScheduleResp
   try {
     const parsedContent = syllabus.parsedContent;
     const currentDate = new Date();
-    const twoWeeksFromNow = new Date();
-    twoWeeksFromNow.setDate(currentDate.getDate() + 14);
 
-    // Create a more focused prompt using only relevant assignment data
-    const prompt = `Generate a focused academic schedule based on these assignments and deadlines:
+    // Convert deadlines directly into tasks without AI generation
+    const tasks = parsedContent.deadlines.map(deadline => {
+      const dueDate = new Date(deadline.date);
+      const daysUntilDue = Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
 
-Assignments and Deadlines:
-${parsedContent.deadlines.map(d => `- ${d.task} (Due: ${d.date})`).join('\n')}
+      let priority = "low";
+      if (daysUntilDue <= 7) {
+        priority = "high";
+      } else if (daysUntilDue <= 14) {
+        priority = "medium";
+      }
 
-Requirements:
-1. Focus ONLY on actual assignments, deadlines, and required submissions
-2. Exclude general course information or readings unless directly related to an assignment
-3. Use these specific date ranges:
-   - High priority: Due within 7 days (${currentDate.toISOString().split('T')[0]} to ${new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]})
-   - Medium priority: Due within 8-14 days
-   - Low priority: Due after 14 days
-4. Break down large assignments into smaller tasks
+      return {
+        task: deadline.task,
+        dueDate: deadline.date,
+        priority
+      };
+    }).filter(task => {
+      const dueDate = new Date(task.dueDate);
+      return !isNaN(dueDate.getTime()) && // Valid date
+             dueDate >= currentDate; // Not in the past
+    }).sort((a, b) => 
+      new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    );
 
-Respond in JSON format with an array of 'tasks'. Each task must include:
-- task: specific, actionable description
-- dueDate: actual due date in YYYY-MM-DD format
-- priority: "high"/"medium"/"low" based on due date
-
-Only include real assignments with actual deadlines from the syllabus.`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" }
-    });
-
-    const parsedResponse = JSON.parse(response.choices[0].message.content || "{}");
-    if (!parsedResponse.tasks) {
-      return { tasks: [] };
-    }
-
-    // Validate and filter tasks
-    parsedResponse.tasks = parsedResponse.tasks
-      .filter((task: any) => {
-        const dueDate = new Date(task.dueDate);
-        return !isNaN(dueDate.getTime()) && // Valid date
-               dueDate >= currentDate && // Not in the past
-               task.task.length > 10; // Meaningful task description
-      })
-      .sort((a: any, b: any) => 
-        new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-      );
-
-    return parsedResponse;
+    return { tasks };
   } catch (error) {
     console.error("Schedule generation error:", error);
     throw error;
@@ -111,6 +80,15 @@ export async function searchJobs(query: string): Promise<JobResponse> {
   });
 
   return JSON.parse(response.choices[0].message.content || "{}");
+}
+
+interface JobResponse {
+  jobs: Array<{
+    title: string;
+    description: string;
+    type: string;
+    location: string;
+  }>;
 }
 
 export async function chatWithAI(message: string, context?: string): Promise<string> {
