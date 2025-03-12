@@ -24,10 +24,11 @@ export function Schedule({ syllabusId }: Props) {
   const { data: schedule, isLoading } = useQuery<Schedule>({
     queryKey: [`/api/schedule/${syllabusId}`],
     enabled: !!syllabusId,
-    onError: (error: Error) => {
+    retry: false,
+    onError: () => {
       toast({
         title: "Error",
-        description: error.message || "Failed to load schedule",
+        description: "Failed to load schedule",
         variant: "destructive",
       });
     }

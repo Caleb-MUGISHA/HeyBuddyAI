@@ -33,7 +33,7 @@ export async function generateRecommendations(syllabus: Syllabus): Promise<Recom
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
-    messages: [{ role: "user", content: prompt }],
+    messages: [{ role: "user" as const, content: prompt }],
     response_format: { type: "json_object" }
   });
 
@@ -42,12 +42,11 @@ export async function generateRecommendations(syllabus: Syllabus): Promise<Recom
 
 export async function generateSchedule(syllabus: Syllabus): Promise<ScheduleResponse> {
   try {
-    const parsedContent = syllabus.parsedContent;
+    const parsedContent = syllabus.parsedContent as { deadlines: Array<{ task: string; date: string }> };
     const currentDate = new Date();
     const twoWeeksFromNow = new Date();
     twoWeeksFromNow.setDate(currentDate.getDate() + 14);
 
-    // Create a more focused prompt using only relevant assignment data
     const prompt = `Generate a focused academic schedule based on these assignments and deadlines:
 
 Assignments and Deadlines:
@@ -71,7 +70,7 @@ Only include real assignments with actual deadlines from the syllabus.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user" as const, content: prompt }],
       response_format: { type: "json_object" }
     });
 
@@ -106,7 +105,7 @@ export async function searchJobs(query: string): Promise<JobResponse> {
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
-    messages: [{ role: "user", content: prompt }],
+    messages: [{ role: "user" as const, content: prompt }],
     response_format: { type: "json_object" }
   });
 
@@ -117,19 +116,18 @@ export async function chatWithAI(message: string, syllabus?: Syllabus): Promise<
   const systemPrompt = "You are a helpful academic assistant for ASU students. " + 
     "Provide concise, relevant answers to help students with their academic needs.";
 
-  // If syllabus is provided, include its content as context
   const messages = [
-    { role: "system", content: systemPrompt },
+    { role: "system" as const, content: systemPrompt },
   ];
 
   if (syllabus) {
     messages.push({
-      role: "system",
+      role: "system" as const,
       content: `Here is the course syllabus content to reference:\n${syllabus.content}\n\nParsed syllabus information:\n${JSON.stringify(syllabus.parsedContent, null, 2)}`
     });
   }
 
-  messages.push({ role: "user", content: message });
+  messages.push({ role: "user" as const, content: message });
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",

@@ -19,10 +19,11 @@ export function Recommendations({ syllabusId }: Props) {
   const { data: recommendations, isLoading } = useQuery<Recommendation>({
     queryKey: [`/api/recommendations/${syllabusId}`],
     enabled: !!syllabusId,
-    onError: (error: Error) => {
+    retry: false,
+    onError: () => {
       toast({
         title: "Error",
-        description: error.message || "Failed to load recommendations",
+        description: "Failed to load recommendations",
         variant: "destructive",
       });
     }
