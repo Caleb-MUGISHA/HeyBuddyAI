@@ -14,24 +14,31 @@ const tips = [
 ];
 
 export function StudyBuddy() {
-  const [tip, setTip] = useState("");
+  const [tip, setTip] = useState(tips[0]);
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    // Show a new tip every 60 seconds
+    let currentIndex = 0;
+
     const showNewTip = () => {
-      const randomTip = tips[Math.floor(Math.random() * tips.length)];
-      setTip(randomTip);
+      currentIndex = (currentIndex + 1) % tips.length;
+      setTip(tips[currentIndex]);
       setIsVisible(true);
 
       // Hide the tip after 10 seconds
-      setTimeout(() => setIsVisible(false), 10000);
+      setTimeout(() => {
+        setIsVisible(false);
+      }, 10000);
     };
 
-    showNewTip(); // Show first tip immediately
-    const interval = setInterval(showNewTip, 60000); // 60 seconds
+    // Initial tip is already shown by default state
 
-    return () => clearInterval(interval);
+    // Set up the interval for subsequent tips
+    const interval = setInterval(showNewTip, 60000); // Show new tip every 60 seconds
+
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
 
   return (
