@@ -37,34 +37,44 @@ export async function generateRecommendations(syllabus: Syllabus): Promise<Recom
     response_format: { type: "json_object" }
   });
 
-  return JSON.parse(response.choices[0].message.content);
+  return JSON.parse(response.choices[0].message.content || "{}");
 }
 
 export async function generateSchedule(syllabus: Syllabus): Promise<ScheduleResponse> {
-  // Decode the base64 content
-  const decodedContent = Buffer.from(syllabus.content, 'base64').toString('utf-8');
+  try {
+    // Decode the base64 content and truncate to avoid token limits
+    const decodedContent = Buffer.from(syllabus.content, 'base64').toString('utf-8');
+    const truncatedContent = decodedContent.slice(0, 8000); // Limit content size
 
-  const prompt = `Based on this course syllabus content: "${decodedContent}", create a detailed weekly schedule.
-  Extract actual assignments, deadlines, and important dates from the syllabus.
-  For each task:
-  - Include specific assignment names and readings
-  - Use actual due dates from the syllabus
-  - Set priority (high/medium/low) based on the task's importance
+    const prompt = `Based on this truncated course syllabus content: "${truncatedContent}", create a detailed weekly schedule.
+    Extract assignments, deadlines, and important dates.
+    For each task:
+    - Include specific assignment names and readings
+    - Use actual due dates from the syllabus
+    - Set priority (high/medium/low) based on importance
 
-  Respond in JSON format with an array of 'tasks', each containing:
-  - task: detailed description of what needs to be done
-  - dueDate: specific date in ISO format (YYYY-MM-DD)
-  - priority: "high", "medium", or "low"
+    Respond in JSON format with an array of 'tasks', each containing:
+    - task: detailed description of what needs to be done
+    - dueDate: specific date in ISO format (YYYY-MM-DD)
+    - priority: "high", "medium", or "low"
 
-  Focus on the next 2-3 weeks of tasks.`;
+    Focus on the next 2-3 weeks of tasks.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" }
-  });
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
+    });
 
-  return JSON.parse(response.choices[0].message.content);
+    const parsedResponse = JSON.parse(response.choices[0].message.content || "{}");
+    if (!parsedResponse.tasks) {
+      return { tasks: [] };
+    }
+    return parsedResponse;
+  } catch (error) {
+    console.error("Schedule generation error:", error);
+    throw error;
+  }
 }
 
 export async function searchJobs(query: string): Promise<JobResponse> {
@@ -78,7 +88,7 @@ export async function searchJobs(query: string): Promise<JobResponse> {
     response_format: { type: "json_object" }
   });
 
-  return JSON.parse(response.choices[0].message.content);
+  return JSON.parse(response.choices[0].message.content || "{}");
 }
 
 export async function chatWithAI(message: string, context?: string): Promise<string> {
@@ -94,5 +104,5 @@ export async function chatWithAI(message: string, context?: string): Promise<str
     ]
   });
 
-  return response.choices[0].message.content;
+  return response.choices[0].message.content || "I'm sorry, I couldn't process that request.";
 }
