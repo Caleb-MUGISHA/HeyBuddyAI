@@ -64,73 +64,75 @@ export function MotivationDashboard() {
   }, []);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {/* Streak Counter */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Flame className="h-5 w-5 text-orange-500" />
-            Study Streak
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <motion.div
-            className="text-4xl font-bold text-center"
-            animate={{ scale: streak ? [1, 1.2, 1] : 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            {streak} days
-          </motion.div>
-        </CardContent>
-      </Card>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Streak Counter */}
+        <Card className="transform transition-all duration-300 hover:scale-[1.02]">
+          <CardHeader className="space-y-1 sm:space-y-2">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Flame className="h-5 w-5 text-orange-500" />
+              Study Streak
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <motion.div
+              className="text-3xl sm:text-4xl font-bold text-center"
+              animate={{ scale: streak ? [1, 1.2, 1] : 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {streak} days
+            </motion.div>
+          </CardContent>
+        </Card>
 
-      {/* Daily Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-blue-500" />
-            Daily Goal Progress
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Progress value={dailyProgress} className="h-2" />
-            <p className="text-sm text-center text-muted-foreground">
-              {dailyProgress}% of daily goal completed
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Daily Progress */}
+        <Card className="transform transition-all duration-300 hover:scale-[1.02]">
+          <CardHeader className="space-y-1 sm:space-y-2">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Target className="h-5 w-5 text-blue-500" />
+              Daily Goal Progress
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 sm:space-y-3">
+              <Progress value={dailyProgress} className="h-2 sm:h-3" />
+              <p className="text-sm sm:text-base text-center text-muted-foreground">
+                {dailyProgress}% of daily goal completed
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Study Time */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-green-500" />
-            Study Time Today
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <motion.div
-            className="text-3xl font-bold text-center"
-            animate={{ opacity: [0.5, 1] }}
-            transition={{ duration: 1, repeat: Infinity }}
-          >
-            {Math.floor(studyTime / 60)}h {studyTime % 60}m
-          </motion.div>
-        </CardContent>
-      </Card>
+        {/* Study Time */}
+        <Card className="transform transition-all duration-300 hover:scale-[1.02]">
+          <CardHeader className="space-y-1 sm:space-y-2">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Clock className="h-5 w-5 text-green-500" />
+              Study Time Today
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <motion.div
+              className="text-2xl sm:text-3xl font-bold text-center"
+              animate={{ opacity: [0.5, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              {Math.floor(studyTime / 60)}h {studyTime % 60}m
+            </motion.div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Achievements */}
-      <Card className="md:col-span-2 lg:col-span-3">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="transform transition-all duration-300">
+        <CardHeader className="space-y-1 sm:space-y-2">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Trophy className="h-5 w-5 text-yellow-500" />
             Achievements
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {achievements.map((achievement) => (
               <motion.div
                 key={achievement.id}
@@ -145,8 +147,8 @@ export function MotivationDashboard() {
                 <div className="flex items-center gap-3">
                   {achievement.icon}
                   <div>
-                    <h3 className="font-semibold">{achievement.title}</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="font-semibold text-sm sm:text-base">{achievement.title}</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       {achievement.description}
                     </p>
                   </div>
@@ -164,13 +166,13 @@ export function MotivationDashboard() {
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -50, opacity: 0 }}
-            className="fixed bottom-4 right-4 p-4 bg-card rounded-lg shadow-lg border border-primary z-50"
+            className="fixed bottom-4 right-4 p-4 bg-card rounded-lg shadow-lg border border-primary z-50 max-w-[90vw] sm:max-w-md"
           >
             <div className="flex items-center gap-3">
-              <Trophy className="h-6 w-6 text-yellow-500" />
+              <Trophy className="h-6 w-6 text-yellow-500 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold">New Achievement!</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-semibold text-sm sm:text-base">New Achievement!</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   You're on a roll! Keep it up!
                 </p>
               </div>
